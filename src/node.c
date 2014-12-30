@@ -414,6 +414,30 @@ get_var(vm_t *vm, Object *id)
   return scope_get(scope, id->value.p);
 }
 
+static void
+prepare_arg(vm_t *vm, Node *node)
+{
+  Node *left;
+  Object *o;
+  
+  if (node == NULL) {
+    return;
+  }
+
+  left = node->left;
+  if (left == NULL) {
+    return;
+  }
+
+  if (left->type == CONST_IDENT) {
+    push_ins(vm, AB(OP_PUSH, r0, left->o));
+    push_ins(vm, AB(OP_GETARG, r2, vm->current));
+    push_ins(vm, AB(OP_PUSH, r2, 0));
+  } else {
+    push_ins(vm, AB(OP_PUSH, r0, left->o));
+  }
+}
+
 #define pnl(x)   if (x->left != NULL) parse_node(vm, x->left)
 #define pnr(x)   if (x->right != NULL) parse_node(vm, x->right)
 #define rpnl(x)   x->left != NULL ? parse_node(vm, x->left) : NULL
@@ -430,6 +454,7 @@ parse_node(vm_t *vm, Node *node)
 
   switch(node->type) {
     case NT_PROGRAM:
+      scope_new(vm);
       pnl(node);
       pnr(node);
       break;
@@ -446,8 +471,16 @@ parse_node(vm_t *vm, Node *node)
       pnr(node);
       break;
     case NT_CALL:
+      // type checking not done yet
+      // push args first
+      pnr(node);
+      // push method
+      push_ins(vm, AB(OP_PUSH, 0, rpnl(node)));
+      push_ins(vm, AB(OP_CALL, 0, 0));
       break;
     case NT_ARGS:
+      // push the args into stack
+      prepare_arg(vm, node);
       break;
     case CONST_IDENT:
     case CONST_STRING:
@@ -469,7 +502,7 @@ parse_node(vm_t *vm, Node *node)
           case OP_SUB:
             oo = rpnl(node);
             vassign(vm, oo, NULL);
-            stack_push(vm, oo);
+            push_ins(vm, AB(OP_PUSH, 0, oo));
             push_ins(vm, AB(OP_SETARG, r2, vm->current));
             break;
           default:

@@ -1,8 +1,8 @@
 CC = gcc
 EXE = ./cape
-SRC = src/cape.c src/y.tab.c src/node.c src/lex.c src/vm.c src/console-colors.c
+SRC = src/cape.c src/y.tab.c src/node.c src/lex.c src/vm.c src/console-colors.c src/lib/std.c
 CFLAGS =
-OBJS := cape.o y.tab.o node.o lex.o vm.o console-colors.o
+OBJS := cape.o y.tab.o node.o lex.o vm.o console-colors.o std.o
 
 all: $(OBJS)
 	$(CC) -o $(EXE) $^

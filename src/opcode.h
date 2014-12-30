@@ -15,8 +15,6 @@ enum {
   OP_OR,
   OP_XOR,
   OP_NOT,
-  OP_IN,
-  OP_OUT,
   OP_LOAD,
   OP_STOR,
   OP_JMP,
@@ -31,6 +29,7 @@ enum {
   OP_CALL,
   OP_SYSCALL,
   OP_SETARG,    // this opcode need a register and a scope
+  OP_GETARG,
 };
 
 #endif

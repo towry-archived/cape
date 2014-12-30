@@ -52,6 +52,7 @@ Object *vm_run(vm_t *);
 instruction_t *ins_abc(int, int, int, int);
 instruction_t *ins_ab(int, int, void *);
 scope_t *scope_new(vm_t *);
+scope_t *scope_new_raw(vm_t *);
 void scope_push(scope_t *, const char *, Object *);
 void scope_del(scope_t *, const char *);
 void scope_set(scope_t *, const char *, Object *);

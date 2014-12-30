@@ -29,6 +29,9 @@ int main(int argc, char *argv[])
   }
 
   vm_init(&vm);
+
+  bind_lib_std(&vm);
+
   // tree_traverse(xtop, 0);
   parse_node(&vm, xtop);
   
@@ -38,20 +41,20 @@ int main(int argc, char *argv[])
 
   exitval = vm_run(&vm);
 
-  switch(exitval->ctype) {
-    case CTINT:
-      printf("%d\n", exitval->value.i);
-      break;
-    case CTFLOAT:
-      printf("%f\n", exitval->value.f);
-      break;
-    case CTSTRING:
-      printf("%s:%d\n", exitval->value.p, exitval->len);
-      break;
-    default:
-      printf("Unknow\n");
-      break;
-  }
+  // switch(exitval->ctype) {
+  //   case CTINT:
+  //     printf("%d\n", exitval->value.i);
+  //     break;
+  //   case CTFLOAT:
+  //     printf("%f\n", exitval->value.f);
+  //     break;
+  //   case CTSTRING:
+  //     printf("%s:%d\n", exitval->value.p, exitval->len);
+  //     break;
+  //   default:
+  //     printf("Unknow\n");
+  //     break;
+  // }
 
   return 0;
 }

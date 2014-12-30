@@ -1,7 +1,7 @@
 
-a := "hello"
-b := " world"
+a := 3.4
+b := 4.23
 
 c := a + b
 
-print(c)
+println(c)

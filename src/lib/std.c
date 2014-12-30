@@ -1,8 +1,8 @@
 // std.c 
 // Copyright 2014 by Towry Wang
 
-#include "intern.h"
-#include "vm.h"
+#include "../intern.h"
+#include "../vm.h"
 #include <stdio.h>
 
 void
@@ -10,6 +10,7 @@ std_print(vm_t *vm, int nargs)
 {
   Object *o;
 
+  // suppose the argument is 1
   o = stack_pop(vm);
 
   switch(o->ctype) {
@@ -36,7 +37,8 @@ std_println(vm_t *vm, int nargs)
 }
 
 void
-bind_lib_std()
+bind_lib_std(vm_t *vm)
 {
-  Object *
+  link_function_top(vm, "print", define_c_function(vm, std_print, 1));
+  link_function_top(vm, "println", define_c_function(vm, std_println, 1));
 }

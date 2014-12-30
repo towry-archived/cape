@@ -24,6 +24,9 @@ vm_init(vm_t *vm)
   vm->exitval->ctype = CTNIL;
   vm->exitval->value.p = NULL;
   kv_init(vm->stack);
+  // the most top scope
+  vm->scope = scope_new_raw(vm);
+  vm->current = vm->scope;
 }
 
 void
@@ -89,7 +92,6 @@ ins_ab(int op, int arg1, void *p)
 void
 push_ins(vm_t *vm, instruction_t *ins)
 {
-  log_info("push_ins");
   // sanity check not here
   if (vm->nins >= 1024) {
     log_err("1024");
@@ -174,6 +176,26 @@ sub(vm_t *vm)
   }
 }
 
+typedef void (*funcptr)(vm_t *, int);
+
+static void
+call_function(vm_t *vm, Object *fn)
+{
+  Object *functor;
+  funcptr fpr;
+
+  functor = scope_get(vm->scope, fn->value.p);
+  if (functor == NULL) {
+    log_err("Undefined function.");
+    exit(1);
+  }
+
+  fpr = functor->value.p;
+
+  // call the function
+  fpr(vm, functor->len);
+}
+
 #define O1 (Object*)vm->regs[reg2]
 #define O2 (Object*)vm->regs[reg3]
 
@@ -200,7 +222,26 @@ eval(vm_t *vm)
     case OP_SETARG:
       o1 = stack_pop(vm);
       o2 = (Object*)(vm->regs[reg1]);
-      scope_set((scope_t *)imm, (char*)(o2->value.p), o1);
+
+      scope_set((scope_t *)imm, (char*)(o1->value.p), o2);
+      break;
+    case OP_CALL:
+      // method
+      o1 = stack_pop(vm);
+      call_function(vm, o1);
+      break;
+    case OP_PUSH:
+      if (imm == 0) {
+        imm = (void*)vm->regs[reg1];
+      }
+
+      stack_push(vm, (Object *)imm);
+      break;
+    case OP_GETARG:
+      // o1 is identifier
+      o1 = stack_pop(vm);
+      o2 = scope_get((scope_t*)imm, o1->value.p);
+      vm->regs[reg1] = (int)o2;
       break;
     default:
       break;
@@ -317,10 +358,11 @@ scope_lookup(scope_t *s, const char *name)
 const char *opcode_names[] = {
   "OP_HALT", "OP_LOADV", "OP_ADD",
   "OP_SUB", "OP_AND", "OP_OR", "OP_XOR",
-  "OP_NOT", "OP_IN", "OP_OUT", "OP_LOAD",
+  "OP_NOT", "OP_LOAD",
   "OP_STOR", "OP_JMP", "OP_JZ", "OP_PUSH",
   "OP_DUP", "OP_MOVE", "OP_JNZ", "OP_PuSHIP",
   "OP_POPIP", "OP_NOP_END", "OP_CALL", "OP_SYSCALL",
+  "OP_SETARG", "OP_GETARG",
 };
 
 
@@ -342,7 +384,7 @@ print_instruct(vm_t *vm)
 }
 
 Object *
-define_c_function(vm_t *vm, void (*functor)(vm_t *vm))
+define_c_function(vm_t *vm, void (*functor)(vm_t *, int), int nargs)
 {
   Object *o;
   o = malloc(sizeof (Object));
@@ -353,6 +395,7 @@ define_c_function(vm_t *vm, void (*functor)(vm_t *vm))
 
   o->ctype = CTFUNC;
   o->value.p = functor;
+  o->len = nargs;
 
   return o;
 }
@@ -377,5 +420,12 @@ link_namespace(vm_t *vm, const char *name)
 void
 link_function(vm_t *vm, Object *ref, const char *name, Object *functor)
 {
-  scope_push((scope_t*)ref->value.p, name, o);
+  scope_push((scope_t*)ref->value.p, name, functor);
+}
+
+
+void
+link_function_top(vm_t *vm, const char *name, Object *functor)
+{
+  scope_push(vm->scope, name, functor);
 }
