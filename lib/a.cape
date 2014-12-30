@@ -1,0 +1,20 @@
+# this is comment
+
+var i int
+var b string
+
+func echo(w int)
+  print(w)
+end
+
+func echo_str(n string)
+  print(b)
+end
+
+# call method
+i = 10
+echo(i)
+
+b = "hello world"
+echo_str(b)
+
