@@ -43,8 +43,11 @@ void yyerror(const char *);
 %type <node> declaration_list declaration_specifier type_specifier
 %type <node> arguments call_args
 
-%left '+' '-' '|' '^'
-%left '*' '/' '%' '&' TAND TNOT
+%left '>' TGE '<' TLE 
+%left '|' '^'
+%left '&'
+%left '+' '-'
+%left '*' '/' '%'
 %left '('
 %left ')'
 

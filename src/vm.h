@@ -11,11 +11,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define NUM_REGS 4
+#define NUM_REGS 5
 #define r0 0
 #define r1 1
 #define r2 2
 #define r3 3
+#define dx 4
 
 typedef struct instruction_ {
   int op;
@@ -50,7 +51,7 @@ typedef struct vm_ {
 #define LASTINS  (vm->ins[vm->nins-1])
 Object *vm_run(vm_t *);
 instruction_t *ins_abc(int, int, int, int);
-instruction_t *ins_ab(int, int, void *);
+instruction_t *ins_ab(int, int, int);
 scope_t *scope_new(vm_t *);
 scope_t *scope_new_raw(vm_t *);
 void scope_push(scope_t *, const char *, Object *);

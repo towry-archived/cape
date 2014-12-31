@@ -72,7 +72,7 @@ ins_abc(int op, int arg1, int arg2, int arg3)
 }
 
 instruction_t *
-ins_ab(int op, int arg1, void *p)
+ins_ab(int op, int arg1, int arg2)
 {
   instruction_t *ins = malloc(sizeof(instruction_t));
   if (ins == NULL) {
@@ -82,9 +82,9 @@ ins_ab(int op, int arg1, void *p)
 
   ins->op = op;
   ins->arg1 = arg1;
-  ins->arg2 = 0;
+  ins->arg2 = arg2;
   ins->arg3 = 0;
-  ins->p = p;
+  ins->p = (void*)arg2;
 
   return ins;
 }
@@ -111,17 +111,6 @@ decode(instruction_t *instruction)
   imm = instruction->p;
 }
 
-void
-obj_set_value(Object *o, int t, int v)
-{
-  switch (t) {
-    case CTINT:
-      o->value.i = v;
-    case CTFLOAT:
-      o->value.f = v;
-  }
-}
-
 static char *
 vm_concat(char *s1, char *s2)
 {
@@ -136,8 +125,10 @@ vm_concat(char *s1, char *s2)
   return ret;
 }
 
+// ! we haven't check both value type
+
 static void
-add(vm_t *vm)
+vm_add(vm_t *vm)
 {
   Object *o1, *o2;
   int i, m, size;
@@ -156,11 +147,14 @@ add(vm_t *vm)
     vm->exitval->value.p = vm_concat(o1->value.p, o2->value.p);
     // below maybe replaced.
     vm->exitval->len = strlen(o1->value.p) + strlen(o2->value.p);
+  } else {
+    log_err("unsupported operand type(s) for +");
+    exit(1);
   }
 }
 
 static void
-sub(vm_t *vm)
+vm_sub(vm_t *vm)
 {
   Object *o1, *o2;
 
@@ -173,6 +167,68 @@ sub(vm_t *vm)
   } else if (o1->ctype == CTFLOAT) {
     vm->exitval->ctype = CTFLOAT;
     vm->exitval->value.f = o1->value.f - o2->value.f;
+  } else {
+    log_err("unsupported operand type(s) for -");
+    exit(1);
+  }
+}
+
+static void
+vm_mul(vm_t *vm)
+{
+  Object *o1, *o2;
+
+  o1 = (Object*)vm->regs[reg2];
+  o2 = (Object*)vm->regs[reg3];
+
+  if (o1->ctype == CTINT) {
+    vm->exitval->ctype = CTINT;
+    vm->exitval->value.i = (o1->value.i) * (o2->value.i);
+  } else if (o1->ctype == CTFLOAT) {
+    vm->exitval->ctype = CTFLOAT;
+    vm->exitval->value.f = (o1->value.f) * (o2->value.f);
+  } else {
+    log_err("unsupported operand type(s) for *");
+    exit(1);
+  }
+}
+
+static void
+vm_div(vm_t *vm)
+{
+  Object *o1, *o2;
+
+  o1 = (Object*)vm->regs[reg2];
+  o2 = (Object*)vm->regs[reg3];
+
+  if (o1->ctype == CTINT) {
+    vm->exitval->ctype = CTINT;
+    vm->exitval->value.i = o1->value.i / o2->value.i;
+  } else if (o1->ctype == CTFLOAT) {
+    vm->exitval->ctype = CTFLOAT;
+    vm->exitval->value.f = o1->value.f / o2->value.f;
+  } else {
+    log_err("unsupported operand type(s) for /");
+    exit(1);
+  }
+}
+
+// For now, mod operation only allowed 
+// between integers
+static void
+vm_mod(vm_t *vm)
+{
+  Object *o1, *o2;
+
+  o1 = (Object*)vm->regs[reg2];
+  o2 = (Object*)vm->regs[reg3];
+
+  if (o1->ctype == CTINT) {
+    vm->exitval->ctype = CTINT;
+    vm->exitval->value.i = o1->value.i % o2->value.i;
+  } else {
+    log_err("unsupported operand type(s) for %%");
+    exit(1);
   }
 }
 
@@ -211,12 +267,30 @@ eval(vm_t *vm)
     case OP_LOADV:
       vm->regs[reg1] = (int)imm;
       break;
+    case OP_LOADI:
+      vm->regs[reg1] = (int)imm;
+      break;
+    case OP_MOVE:
+      vm->regs[reg1] = (int)(vm->regs[reg2]);
+      break;
     case OP_ADD:
-      add(vm);
+      vm_add(vm);
       vm->regs[reg1] = (int)vm->exitval;
       break;
     case OP_SUB:
-      sub(vm);
+      vm_sub(vm);
+      vm->regs[reg1] = (int)vm->exitval;
+      break;
+    case OP_MUL:
+      vm_mul(vm);
+      vm->regs[reg1] = (int)vm->exitval;
+      break;
+    case OP_DIV:
+      vm_div(vm);
+      vm->regs[reg1] = (int)vm->exitval;
+      break;
+    case OP_MOD:
+      vm_mod(vm);
       vm->regs[reg1] = (int)vm->exitval;
       break;
     case OP_SETARG:
@@ -224,6 +298,7 @@ eval(vm_t *vm)
       o2 = (Object*)(vm->regs[reg1]);
 
       scope_set((scope_t *)imm, (char*)(o1->value.p), o2);
+      vm->regs[reg1] = 0;
       break;
     case OP_CALL:
       // method

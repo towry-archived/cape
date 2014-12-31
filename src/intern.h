@@ -22,6 +22,7 @@ typedef enum {
   CTNIL,
   CTBOOL,
   CTSTRING,
+  CTIDENT,
   CTFLOAT,
   CTINT,
   CTFUNC, 

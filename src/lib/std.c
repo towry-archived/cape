@@ -24,7 +24,7 @@ std_print(vm_t *vm, int nargs)
       printf("%s", o->value.p, o->len);
       break;
     default:
-      printf("Unknow");
+      printf("Unknow type: %d\n", o->ctype);
       break;
   }
 }

@@ -1,3 +1,4 @@
+// cape.c
 // Copyright 2014 by Towry Wang
 
 #include "intern.h"
@@ -10,9 +11,19 @@
 extern void lex_init(char *); 
 extern int yyparse();
 
-#ifndef _CTREE_
+#ifndef _CTTREE_
 Node *xtop;
 #endif
+
+static int usage() {
+  printf("usage: cape [options] [file]\n"
+         "options:\n"
+         "  -e   eval code\n"
+         "  -d   show debug info (multiple times for more)\n"
+         "  -v   print version\n"
+         "  -h   print this\n");
+  return 1;
+}
 
 int main(int argc, char *argv[])
 {
@@ -24,7 +35,7 @@ int main(int argc, char *argv[])
     lex_init(argv[1]);
     yyparse();
   } else {
-    log_info("Nothing input");
+    usage();
     return 1;
   }
 
@@ -33,6 +44,8 @@ int main(int argc, char *argv[])
   bind_lib_std(&vm);
 
   // tree_traverse(xtop, 0);
+  // exit(0);
+
   parse_node(&vm, xtop);
   
   push_ins(&vm, ABC(OP_HALT, 0, 0, 0));

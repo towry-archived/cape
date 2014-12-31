@@ -1,3 +1,4 @@
+// node.c
 // Copyright 2014 by Towry Wang
 
 #include "intern.h"
@@ -158,7 +159,7 @@ const_ident_node(char *s)
     exit(1);
   }
   
-  o->ctype = CTSTRING;
+  o->ctype = CTIDENT;
   o->value.p = strdup(s);
 
   return make_node(CONST_IDENT, NULL, NULL, o);
@@ -405,6 +406,11 @@ get_var(vm_t *vm, Object *id)
 {
   scope_t *scope;
 
+  // if it's literal
+  if (id->ctype != CTIDENT) {
+    return id;
+  }
+
   if ((scope = var_in_scope(vm->current, id)) == NULL) {
     log_err("Variable not declared.");
     exit(1);
@@ -487,47 +493,77 @@ parse_node(vm_t *vm, Node *node)
     case CONST_FLOAT:
     case CONST_BOOL:
     case CONST_INT: 
+      // primary
+      push_ins(vm, AB(OP_LOADI, dx, node->o));
       return node->o;
       break;
     case NT_ASSIGN:
-      assign(vm, rpnl(node), NULL);
+      pnr(node);
+
+      oo = rpnl(node); // get variable name
+      assign(vm, oo, NULL);
+
+      push_ins(vm, AB(OP_PUSH, 0, oo));
+      push_ins(vm, AB(OP_SETARG, dx, vm->current));
       break;
     case NT_VASSIGN:
-      oo = rpnr(node);
+      pnr(node);
+      
+      oo = rpnl(node); // get variable name
+      vassign(vm, oo, NULL);
 
-      instruction_t *ins = LASTINS;
-      if (ins != NULL) {
-        switch (ins->op) {
-          case OP_ADD:
-          case OP_SUB:
-            oo = rpnl(node);
-            vassign(vm, oo, NULL);
-            push_ins(vm, AB(OP_PUSH, 0, oo));
-            push_ins(vm, AB(OP_SETARG, r2, vm->current));
-            break;
-          default:
-            vassign(vm, rpnl(node), oo);
-            break;
-        }
-      } else {
-        vassign(vm, rpnl(node), oo);
-      }
+      push_ins(vm, AB(OP_PUSH, 0, oo));
+      push_ins(vm, AB(OP_SETARG, dx, vm->current));
       break;
     case NT_ADD:
-      push_ins(vm, AB(OP_LOADV, r0, get_var(vm, rpnl(node))));
-      push_ins(vm, AB(OP_LOADV, r1, get_var(vm, rpnr(node))));
+      pnl(node);
+      push_ins(vm, AB(OP_MOVE, r0, dx));
+
+      pnr(node);
+      push_ins(vm, AB(OP_MOVE, r1, dx));
+
       push_ins(vm, ABC(OP_ADD, r2, r0, r1));
+      push_ins(vm, AB(OP_MOVE, dx, r2));
       break;
     case NT_SUB:
-      push_ins(vm, AB(OP_LOADV, r0, get_var(vm, rpnl(node))));
-      push_ins(vm, AB(OP_LOADV, r1, get_var(vm, rpnr(node))));
+      pnl(node);
+      push_ins(vm, AB(OP_MOVE, r0, dx));
+      
+      pnr(node);
+      push_ins(vm, AB(OP_MOVE, r1, dx));
+
       push_ins(vm, ABC(OP_SUB, r2, r0, r1));
+      push_ins(vm, AB(OP_MOVE, dx, r2));
       break;
     case NT_MUL:
+      pnl(node);
+      push_ins(vm, AB(OP_MOVE, r0, dx));
+      
+      pnr(node);
+      push_ins(vm, AB(OP_MOVE, r1, dx));
+
+      push_ins(vm, ABC(OP_MUL, r2, r0, r1));
+      push_ins(vm, AB(OP_MOVE, dx, r2));
       break;
     case NT_DIV:
+      pnl(node);
+      push_ins(vm, AB(OP_MOVE, r0, dx));
+      
+      pnr(node);
+      push_ins(vm, AB(OP_MOVE, r1, dx));
+
+      push_ins(vm, ABC(OP_DIV, r2, r0, r1));
+      push_ins(vm, AB(OP_MOVE, dx, r2));
       break;
     case NT_MOD:
+      pnl(node);
+      push_ins(vm, AB(OP_MOVE, r0, dx));
+      
+      pnr(node);
+      push_ins(vm, AB(OP_MOVE, r1, dx));
+
+      push_ins(vm, ABC(OP_MOD, r2, r0, r1));
+      push_ins(vm, AB(OP_MOVE, dx, r2));
       break;
     case NT_FUNC:
       break;
