@@ -43,8 +43,8 @@ int main(int argc, char *argv[])
 
   bind_lib_std(&vm);
 
-  // tree_traverse(xtop, 0);
-  // exit(0);
+  //tree_traverse(xtop, 0);
+  //exit(0);
 
   parse_node(&vm, xtop);
   

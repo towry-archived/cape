@@ -498,20 +498,17 @@ parse_node(vm_t *vm, Node *node)
       return node->o;
       break;
     case NT_ASSIGN:
-      pnr(node);
-
       oo = rpnl(node); // get variable name
       assign(vm, oo, NULL);
 
+      pnr(node);
       push_ins(vm, AB(OP_PUSH, 0, oo));
       push_ins(vm, AB(OP_SETARG, dx, vm->current));
       break;
     case NT_VASSIGN:
-      pnr(node);
-      
       oo = rpnl(node); // get variable name
       vassign(vm, oo, NULL);
-
+      pnr(node);
       push_ins(vm, AB(OP_PUSH, 0, oo));
       push_ins(vm, AB(OP_SETARG, dx, vm->current));
       break;

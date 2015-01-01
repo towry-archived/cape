@@ -10,7 +10,7 @@ std_print(vm_t *vm, int nargs)
 {
   Object *o;
 
-  // suppose the argument is 1
+  // suppose the total arguments is 1
   o = stack_pop(vm);
 
   switch(o->ctype) {

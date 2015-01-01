@@ -47,7 +47,7 @@ typedef struct vm_ {
 } vm_t;
 
 #define ABC(op, a, b, c) ins_abc((op), (a), (b), (c)) 
-#define AB(op, a, b) ins_ab((op), (a), (b))
+#define AB(op, a, b) ins_ab((op), (a), (int)(b))
 #define LASTINS  (vm->ins[vm->nins-1])
 Object *vm_run(vm_t *);
 instruction_t *ins_abc(int, int, int, int);

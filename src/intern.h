@@ -17,7 +17,7 @@ typedef union {
 } Value;
 
 typedef enum {
-  CTabcdefg,
+  CTabcdefg = 0,
 
   CTNIL,
   CTBOOL,

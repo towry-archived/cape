@@ -316,6 +316,7 @@ eval(vm_t *vm)
       // o1 is identifier
       o1 = stack_pop(vm);
       o2 = scope_get((scope_t*)imm, o1->value.p);
+
       vm->regs[reg1] = (int)o2;
       break;
     default:
