@@ -43,12 +43,12 @@ int main(int argc, char *argv[])
 
   bind_lib_std(&vm);
 
-  //tree_traverse(xtop, 0);
-  //exit(0);
+  // tree_traverse(xtop, 0);
+  // exit(0);
 
   parse_node(&vm, xtop);
   
-  push_ins(&vm, ABC(OP_HALT, 0, 0, 0));
+  vm_halt(&vm);
 
   // print_instruct(&vm);
 
@@ -68,6 +68,9 @@ int main(int argc, char *argv[])
   //     printf("Unknow\n");
   //     break;
   // }
+
+  vm_free(&vm);
+  node_free(xtop);
 
   return 0;
 }

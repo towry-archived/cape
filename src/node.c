@@ -7,6 +7,26 @@
 #include <stdlib.h>
 #include <string.h>
 
+void
+node_free(Node *top)
+{
+  if (top == NULL) {
+    return;
+  }
+
+  if (top->o != NULL) {
+    free(top->o);
+  }
+
+  if (top->left != NULL) {
+    node_free(top->left);
+  }
+
+  if (top->right != NULL) {
+    node_free(top->right);
+  }
+}
+
 Object o = { .ctype = CTNIL };
 
 Object *
@@ -514,52 +534,54 @@ parse_node(vm_t *vm, Node *node)
       break;
     case NT_ADD:
       pnl(node);
-      push_ins(vm, AB(OP_MOVE, r0, dx));
+      // push the result to stack
+      push_ins(vm, AB(OP_PUSH, dx, 0));
 
       pnr(node);
-      push_ins(vm, AB(OP_MOVE, r1, dx));
+      push_ins(vm, AB(OP_PUSH, dx, 0));
 
-      push_ins(vm, ABC(OP_ADD, r2, r0, r1));
+      // like a method call
+      push_ins(vm, ABC(OP_ADD, r2, 0, 0));
       push_ins(vm, AB(OP_MOVE, dx, r2));
       break;
     case NT_SUB:
       pnl(node);
-      push_ins(vm, AB(OP_MOVE, r0, dx));
-      
-      pnr(node);
-      push_ins(vm, AB(OP_MOVE, r1, dx));
+      push_ins(vm, AB(OP_PUSH, dx, 0));
 
-      push_ins(vm, ABC(OP_SUB, r2, r0, r1));
+      pnr(node);
+      push_ins(vm, AB(OP_PUSH, dx, 0));
+
+      push_ins(vm, ABC(OP_SUB, r2, 0, 0));
       push_ins(vm, AB(OP_MOVE, dx, r2));
       break;
     case NT_MUL:
       pnl(node);
-      push_ins(vm, AB(OP_MOVE, r0, dx));
-      
-      pnr(node);
-      push_ins(vm, AB(OP_MOVE, r1, dx));
+      push_ins(vm, AB(OP_PUSH, dx, 0));
 
-      push_ins(vm, ABC(OP_MUL, r2, r0, r1));
+      pnr(node);
+      push_ins(vm, AB(OP_PUSH, dx, 0));
+
+      push_ins(vm, ABC(OP_MUL, r2, 0, 0));
       push_ins(vm, AB(OP_MOVE, dx, r2));
       break;
     case NT_DIV:
       pnl(node);
-      push_ins(vm, AB(OP_MOVE, r0, dx));
-      
-      pnr(node);
-      push_ins(vm, AB(OP_MOVE, r1, dx));
+      push_ins(vm, AB(OP_PUSH, dx, 0));
 
-      push_ins(vm, ABC(OP_DIV, r2, r0, r1));
+      pnr(node);
+      push_ins(vm, AB(OP_PUSH, dx, 0));
+
+      push_ins(vm, ABC(OP_DIV, r2, 0, 0));
       push_ins(vm, AB(OP_MOVE, dx, r2));
       break;
     case NT_MOD:
       pnl(node);
-      push_ins(vm, AB(OP_MOVE, r0, dx));
-      
-      pnr(node);
-      push_ins(vm, AB(OP_MOVE, r1, dx));
+      push_ins(vm, AB(OP_PUSH, dx, 0));
 
-      push_ins(vm, ABC(OP_MOD, r2, r0, r1));
+      pnr(node);
+      push_ins(vm, AB(OP_PUSH, dx, 0));
+
+      push_ins(vm, ABC(OP_MOD, r2, 0, 0));
       push_ins(vm, AB(OP_MOVE, dx, r2));
       break;
     case NT_FUNC:

@@ -2,7 +2,6 @@
 // Copyright 2014 by Towry Wang
 
 #include "vm.h"
-#include "opcode.h"
 #include "debug.h"
 #include <stdio.h>
 #include <string.h>
@@ -19,14 +18,25 @@ vm_init(vm_t *vm)
   vm->pc = 0;
   vm->nins = 0;
   vm->running = 0;
-  memset(vm->regs, 0, 4);
-  vm->exitval = malloc(sizeof(Object));
+  memset(vm->regs, 0, NUM_REGS);
+  vm->r = 0;
+  vm->pool = pool_new(0);
+  if (vm->pool == NULL) {
+    exit(1);
+  }
+  vm->exitval = pool_alloc(vm->pool, sizeof(Object));
   vm->exitval->ctype = CTNIL;
   vm->exitval->value.p = NULL;
   kv_init(vm->stack);
   // the most top scope
   vm->scope = scope_new_raw(vm);
   vm->current = vm->scope;
+}
+
+void
+vm_free(vm_t *vm)
+{
+  pool_free(vm->pool); 
 }
 
 void
@@ -54,9 +64,9 @@ fetch_ins(vm_t *vm)
 }
 
 instruction_t *
-ins_abc(int op, int arg1, int arg2, int arg3)
+ins_abc(vm_t * vm, int op, int arg1, int arg2, int arg3)
 {
-  instruction_t *ins = malloc(sizeof(instruction_t));
+  instruction_t *ins = pool_alloc(vm->pool, sizeof(instruction_t));
   if (ins == NULL) {
     log_err("malloc failed");
     exit(1);
@@ -72,9 +82,9 @@ ins_abc(int op, int arg1, int arg2, int arg3)
 }
 
 instruction_t *
-ins_ab(int op, int arg1, int arg2)
+ins_ab(vm_t *vm, int op, int arg1, int arg2)
 {
-  instruction_t *ins = malloc(sizeof(instruction_t));
+  instruction_t *ins = pool_alloc(vm->pool, sizeof(instruction_t));
   if (ins == NULL) {
     log_err("malloc failed");
     exit(1);
@@ -101,6 +111,13 @@ push_ins(vm_t *vm, instruction_t *ins)
   vm->nins++;
 }
 
+void
+vm_halt(vm_t *vm)
+{
+  push_ins(vm, ABC(OP_HALT, 0, 0, 0));
+}
+
+
 static void
 decode(instruction_t *instruction)
 {
@@ -112,13 +129,13 @@ decode(instruction_t *instruction)
 }
 
 static char *
-vm_concat(char *s1, char *s2)
+vm_concat(vm_t *vm, char *s1, char *s2)
 {
   int len;
 
   len = strlen(s1) + strlen(s2);
 
-  char *ret = malloc(len + 1);
+  char *ret = pool_alloc(vm->pool, len + 1);
   strcpy(ret, s1);
   strcat(ret, s2);
 
@@ -133,8 +150,8 @@ vm_add(vm_t *vm)
   Object *o1, *o2;
   int i, m, size;
 
-  o1 = (Object*)vm->regs[reg2];
-  o2 = (Object*)vm->regs[reg3];
+  o2 = stack_pop(vm);
+  o1 = stack_pop(vm);
 
   if (o1->ctype == CTINT) {
     vm->exitval->ctype = CTINT;
@@ -144,7 +161,7 @@ vm_add(vm_t *vm)
     vm->exitval->value.f = o1->value.f + o2->value.f;
   } else if (o1->ctype == CTSTRING) {
     vm->exitval->ctype = CTSTRING;
-    vm->exitval->value.p = vm_concat(o1->value.p, o2->value.p);
+    vm->exitval->value.p = vm_concat(vm, o1->value.p, o2->value.p);
     // below maybe replaced.
     vm->exitval->len = strlen(o1->value.p) + strlen(o2->value.p);
   } else {
@@ -158,8 +175,8 @@ vm_sub(vm_t *vm)
 {
   Object *o1, *o2;
 
-  o1 = (Object*)vm->regs[reg2];
-  o2 = (Object*)vm->regs[reg3];
+  o2 = stack_pop(vm);
+  o1 = stack_pop(vm);
 
   if (o1->ctype == CTINT) {
     vm->exitval->ctype = CTINT;
@@ -178,8 +195,8 @@ vm_mul(vm_t *vm)
 {
   Object *o1, *o2;
 
-  o1 = (Object*)vm->regs[reg2];
-  o2 = (Object*)vm->regs[reg3];
+  o2 = stack_pop(vm);
+  o1 = stack_pop(vm);
 
   if (o1->ctype == CTINT) {
     vm->exitval->ctype = CTINT;
@@ -198,8 +215,8 @@ vm_div(vm_t *vm)
 {
   Object *o1, *o2;
 
-  o1 = (Object*)vm->regs[reg2];
-  o2 = (Object*)vm->regs[reg3];
+  o2 = stack_pop(vm);
+  o1 = stack_pop(vm);
 
   if (o1->ctype == CTINT) {
     vm->exitval->ctype = CTINT;
@@ -220,8 +237,8 @@ vm_mod(vm_t *vm)
 {
   Object *o1, *o2;
 
-  o1 = (Object*)vm->regs[reg2];
-  o2 = (Object*)vm->regs[reg3];
+  o2 = stack_pop(vm);
+  o1 = stack_pop(vm);
 
   if (o1->ctype == CTINT) {
     vm->exitval->ctype = CTINT;
@@ -343,7 +360,7 @@ scope_new(vm_t *vm)
 {
   scope_t *ret;
 
-  ret = malloc(sizeof(scope_t));
+  ret = pool_alloc(vm->pool, sizeof(scope_t));
   if (ret == NULL) {
     log_err("malloc failed\n");
     exit(1);
@@ -363,7 +380,7 @@ scope_new_raw(vm_t *vm)
 {
   scope_t *ret;
 
-  ret = malloc(sizeof(scope_t));
+  ret = pool_alloc(vm->pool, sizeof(scope_t));
   if (ret == NULL) {
     log_err("malloc failed\n");
     exit(1);
@@ -463,7 +480,7 @@ Object *
 define_c_function(vm_t *vm, void (*functor)(vm_t *, int), int nargs)
 {
   Object *o;
-  o = malloc(sizeof (Object));
+  o = pool_alloc(vm->pool, sizeof (Object));
   if (o == NULL) {
     log_err("malloc");
     exit(1);
