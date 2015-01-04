@@ -57,6 +57,16 @@ stack_size(vm_t *vm)
   return kv_size(vm->stack);
 }
 
+jump_t *
+jump_new(vm_t *vm)
+{
+  jump_t *jt;
+
+  jt = pool_alloc(vm->pool, sizeof (jump_t));
+
+  return jt;
+}
+
 instruction_t *
 fetch_ins(vm_t *vm)
 {
@@ -252,30 +262,59 @@ vm_mod(vm_t *vm)
 typedef void (*funcptr)(vm_t *, int);
 
 static void
-call_function(vm_t *vm, Object *fn)
+call_c_function(vm_t *vm, Object *fn)
 {
-  Object *functor;
   funcptr fpr;
 
-  functor = scope_get(vm->scope, fn->value.p);
-  if (functor == NULL) {
-    log_err("Undefined function.");
+  fpr = fn->value.p;
+
+  // call the function
+  fpr(vm, fn->len);
+}
+
+static void
+call_function(vm_t *vm, Object *fn)
+{
+  Object *o, *o2;
+  jump_t *jt, *jt2;
+  scope_t *scope;
+  int argc;
+  int i;
+
+  scope = (scope_t*)fn->closure;
+  if (scope == NULL) {
+    log_err("error when calling function");
     exit(1);
   }
 
-  fpr = functor->value.p;
+  argc = scope->argc;
+  for (i = argc-1; i >= 0; i--) {
+    o = stack_pop(vm);
+    o2 = scope_kget(scope, i);
+    if (o2 == NULL) {
+      log_err("Unknow error");
+      exit(1);
+    }
 
-  // call the function
-  fpr(vm, functor->len);
+    if (o->ctype != o2->ctype) {
+      log_err("Argument type not matched. %d: %d", o->ctype, o2->ctype);
+      exit(1);
+    } else {
+      scope_kset(scope, i, o);
+    }
+  }
+
+  jt2 = (jump_t *)fn->value.p;
+
+  vm->regs[jx] = vm->pc;
+  vm->pc = jt2->pc;
 }
-
-#define O1 (Object*)vm->regs[reg2]
-#define O2 (Object*)vm->regs[reg3]
 
 void
 eval(vm_t *vm)
 {
   Object *o1, *o2;
+  jump_t *jt;
 
   switch(opcode) {
     case OP_HALT:
@@ -320,7 +359,21 @@ eval(vm_t *vm)
     case OP_CALL:
       // method
       o1 = stack_pop(vm);
-      call_function(vm, o1);
+
+      o2 = get_var(vm, o1);
+      if (o2 == NULL) {
+        log_err("Undefined function.");
+        exit(1);
+      }
+
+      if (o2->ctype == CTCFUNC) {
+        call_c_function(vm, o2);
+      } else if (o2->ctype == CTFUNC) {
+        call_function(vm, o2);
+      } else {
+        log_err("func call");
+        exit(1);
+      }
       break;
     case OP_PUSH:
       if (imm == 0) {
@@ -335,6 +388,21 @@ eval(vm_t *vm)
       o2 = scope_get((scope_t*)imm, o1->value.p);
 
       vm->regs[reg1] = (int)o2;
+      break;
+    case OP_JUMP:
+      jt = (jump_t *)(imm);
+
+      vm->regs[jx] = vm->pc;
+      vm->pc = jt->pc;
+      break;
+    case OP_NOOP:
+      // for debug use
+      break;
+    case OP_RET:
+      if (vm->regs[jx] == 0) {
+        break;
+      }
+      vm->pc = vm->regs[jx];
       break;
     default:
       break;
@@ -368,6 +436,7 @@ scope_new(vm_t *vm)
 
   ret->env = kh_init(env);
   ret->parent = vm->current;
+  ret->argc = 0;
   vm->current = ret;
 
   return ret;
@@ -422,6 +491,26 @@ scope_get(scope_t *s, const char *name)
   return k == kh_end(s->env) ? NULL : kh_value(s->env, k);
 }
 
+Object *
+scope_kget(scope_t *s, int k)
+{
+  if (k >= kh_end(s->env)) {
+    return NULL;
+  }
+
+  return kh_value(s->env, k);
+}
+
+void
+scope_kset(scope_t *s, int k, Object *v)
+{
+  if (k >= kh_end(s->env)) {
+    return;
+  }
+
+  kh_value(s->env, k) = v;
+}
+
 void
 scope_set(scope_t *s, const char *name, Object *v)
 {
@@ -449,13 +538,11 @@ scope_lookup(scope_t *s, const char *name)
 }
 
 const char *opcode_names[] = {
-  "OP_HALT", "OP_LOADV", "OP_ADD",
-  "OP_SUB", "OP_AND", "OP_OR", "OP_XOR",
-  "OP_NOT", "OP_LOAD",
-  "OP_STOR", "OP_JMP", "OP_JZ", "OP_PUSH",
-  "OP_DUP", "OP_MOVE", "OP_JNZ", "OP_PuSHIP",
-  "OP_POPIP", "OP_NOP_END", "OP_CALL", "OP_SYSCALL",
-  "OP_SETARG", "OP_GETARG",
+  "OP_NOOP", "OP_HALT", "OP_LOADV", "OP_LOADI", "OP_ADD",
+  "OP_SUB", "OP_AND", "OP_MUL", "OP_DIV",
+  "OP_MOD", "OP_NOT", "OP_PUSH", "OP_MOVE",
+  "OP_CALL", "OP_SETARG", "OP_GETARG", "OP_JUMP",
+  "OP_RET",
 };
 
 
@@ -472,7 +559,7 @@ print_instruct(vm_t *vm)
 
   for (i = 0; i < vm->nins; i++) {
     ins = vm->ins[i];
-    printf("%s, ARG1: %d, POINTER: %p\n", opcode_name(ins->op), ins->arg1, ins->p);
+    printf("%d: %s, ARG1: %d, POINTER: %p\n", i, opcode_name(ins->op), ins->arg1, ins->p);
   }
 }
 
@@ -486,7 +573,7 @@ define_c_function(vm_t *vm, void (*functor)(vm_t *, int), int nargs)
     exit(1);
   }
 
-  o->ctype = CTFUNC;
+  o->ctype = CTCFUNC;
   o->value.p = functor;
   o->len = nargs;
 
@@ -516,9 +603,15 @@ link_function(vm_t *vm, Object *ref, const char *name, Object *functor)
   scope_push((scope_t*)ref->value.p, name, functor);
 }
 
+void
+link_function_current(vm_t *vm, const char *name, Object * functor)
+{
+  scope_push(vm->current, name, functor);
+}
 
 void
 link_function_top(vm_t *vm, const char *name, Object *functor)
 {
   scope_push(vm->scope, name, functor);
 }
+

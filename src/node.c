@@ -4,6 +4,7 @@
 #include "intern.h"
 #include "debug.h"
 #include "vm.h"
+#include "node.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -248,8 +249,13 @@ print_const_node(Node *tree, int offset)
       prefix(offset);
       printf("value: %s\n", ov(tree->o, p));
       break;
+    case CTIDENT:
+      printf("CTIDENT\n");
+      prefix(offset);
+      printf("value: %s\n", ov(tree->o, p));
+      break;
     default:
-      printf("Unknow\n");
+      printf("Unknow: %d\n", tree->o->ctype);
       break;
   }
 }
@@ -464,15 +470,96 @@ prepare_arg(vm_t *vm, Node *node)
   }
 }
 
+
 #define pnl(x)   if (x->left != NULL) parse_node(vm, x->left)
 #define pnr(x)   if (x->right != NULL) parse_node(vm, x->right)
 #define rpnl(x)   x->left != NULL ? parse_node(vm, x->left) : NULL
 #define rpnr(x)   x->right != NULL ? parse_node(vm, x->right) : NULL
 
+static void
+assign_multiple_var(vm_t *vm, Node *n, Object *t)
+{
+  Node *a;
+
+  if (n == NULL) return;
+
+  a = n;
+  while (a != NULL) {
+    if (a->type == NT_LIST) {
+      assign_multiple_var(vm, a->left, t);
+      assign_multiple_var(vm, a->right, t);
+    }
+
+    if (a->type = NT_VAR) {
+      a = a->left; // ident
+      vm->current->argc++;
+
+      scope_push(vm->current, a->o->value.p, t);
+    }
+
+    break;
+  }
+}
+
+static void
+make_decl(vm_t *vm, Node *n)
+{
+  Object *t;
+  Node *a;
+
+  t = rpnr(n);
+  if (t == NULL) {
+    log_err("Need type");
+    exit(1);
+  }
+
+  a = n->left;
+  assign_multiple_var(vm, a, t);
+}
+
+static void
+prepare_param(vm_t *vm, Node *node)
+{
+  if (node == NULL) return;
+
+  if (node->type == NT_DECL) {
+    make_decl(vm, node);
+    return;
+  }
+
+  prepare_param(vm, node->left);
+  prepare_param(vm, node->right);
+}
+
+static Object *
+define_function(vm_t *vm, Node *node)
+{
+  Object *o;
+  jump_t *jt = jump_new(vm);
+  Node *n;
+
+  o = pool_alloc(vm->pool, sizeof (Object));
+  if (o == NULL) {
+    exit(1);
+  }
+
+  jt->pc = vm->nins;
+  o->ctype = CTFUNC;
+  o->value.p = (void *)jt;
+  o->closure = NULL;
+
+  // now n is a list
+  // and in the left of list is the params
+  // in the right of list is the body
+  // there may have some errors.
+
+  return o;
+}
+
 Object *
 parse_node(vm_t *vm, Node *node)
 {
-  Object *oo;
+  Object *oo, *oo2;
 
   if (node == NULL) {
     return NULL;
@@ -509,6 +596,10 @@ parse_node(vm_t *vm, Node *node)
       prepare_arg(vm, node);
       break;
     case CONST_IDENT:
+      push_ins(vm, AB(OP_PUSH, 0, node->o));
+      push_ins(vm, AB(OP_GETARG, dx, vm->current));
+      return node->o;
+      break;
     case CONST_STRING:
     case CONST_FLOAT:
     case CONST_BOOL:
@@ -585,14 +676,33 @@ parse_node(vm_t *vm, Node *node)
       push_ins(vm, AB(OP_MOVE, dx, r2));
       break;
     case NT_FUNC:
+      // compile this function to instruction code
+      oo = rpnl(node); // func name
+
+      // set jump
+      jump_t *jt = jump_new(vm);
+      push_ins(vm, AB(OP_JUMP, 0, jt));
+
+      oo2 = define_function(vm, node);
+      link_function_current(vm, oo->value.p, oo2);
+
+      oo2->closure = (void *)scope_new(vm);
+      prepare_param(vm, node->right->left);      
+      // compile func body
+      pnr(node->right);
+      push_ins(vm, AB(OP_RET, 0, 0));
+      jt->pc = vm->nins;
       break;
     case NT_PARAM:
+      pnl(node);
+      pnr(node);
       break;
     case NT_DECL:
       break;
     case NT_VAR:
       break;
     case NT_TYPE:
+      return node->o;
       break;
     default:
       log_info("default");

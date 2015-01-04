@@ -1,4 +1,9 @@
+# this line must retain
 
-c := "Hi " + "Towry " + " nice "
+func add(x string, y string)
+  z := x + y
+  println(z)
+end
 
-println(c)
+add("hello ", "world!")
+

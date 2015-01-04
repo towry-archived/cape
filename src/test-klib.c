@@ -9,22 +9,20 @@ struct obj {
 };
 typedef struct obj* objptr;
 
-KHASH_MAP_INIT_INT(32, objptr)
+KHASH_MAP_INIT_STR(32, const char *)
 
 int main() {
   objptr a, b;
 	int ret, is_missing;
 	khiter_t k;
 	khash_t(32) *h = kh_init(32);
-	k = kh_put(32, h, 5, &ret);
-	kh_value(h, k) = a;
-	k = kh_get(32, h, 10);
-	is_missing = (k == kh_end(h));
-	k = kh_get(32, h, 5);
-	kh_del(32, h, k);
-	for (k = kh_begin(h); k != kh_end(h); ++k)
-		if (kh_exist(h, k)) kh_value(h, k) = b;
-	kh_destroy(32, h);
+	k = kh_put(32, h, "d", &ret);
+	kh_value(h, k) = "haha";
+
+	printf("%d\n%d\n", k, ret);
+
+	printf("%s\n", kh_value(h, 1));
+
 	return 0;
 }
 

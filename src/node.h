@@ -6,4 +6,5 @@
 
 Object *parse_node(vm_t *, Node *);
 void node_free(Node *);
+
 #endif

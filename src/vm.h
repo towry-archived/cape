@@ -17,6 +17,8 @@
 #define r1 1
 #define r2 2
 #define r3 3
+#define jx 253
+#define sx 254
 #define dx 255
 
 typedef struct instruction_ {
@@ -33,6 +35,7 @@ KHASH_MAP_INIT_STR(env, Object *)
 typedef struct scope_ {
   khash_t(env) *env;
   struct scope_ *parent;
+  int argc;
 } scope_t;
 
 typedef struct vm_ {
@@ -50,6 +53,10 @@ typedef struct vm_ {
   pool_t *pool;
 } vm_t;
 
+typedef struct jump_ {
+  int pc;
+} jump_t;
+
 #define ABC(op, a, b, c) ins_abc((vm), (op), (a), (b), (c)) 
 #define AB(op, a, b) ins_ab((vm), (op), (a), (int)(b))
 #define LASTINS  (vm->ins[vm->nins-1])
@@ -64,11 +71,15 @@ scope_t *scope_new_raw(vm_t *);
 void scope_push(scope_t *, const char *, Object *);
 void scope_del(scope_t *, const char *);
 void scope_set(scope_t *, const char *, Object *);
+void scope_kset(scope_t *, int, Object *);
 Object *scope_get(scope_t *, const char *);
+Object *scope_kget(scope_t *, int);
 int scope_lookup(scope_t *, const char *);
 void print_instruct(vm_t *);
 void stack_push(vm_t *, Object *);
 Object *stack_pop(vm_t *);
 int stack_size(vm_t *);
-
+jump_t *jump_new(vm_t *);
+Object *get_var(vm_t *, Object *);
+extern Object *get_var(vm_t *, Object *);
 #endif

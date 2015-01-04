@@ -1,3 +1,7 @@
-func main(age int, name string)
-  println("lala")
+# func.cape
+
+func hello(name string)
+  println("Hello " + name)
 end
+
+hello("World")

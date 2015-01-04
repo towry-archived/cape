@@ -7,6 +7,7 @@
 // vm bytecode opcode
 
 enum {
+  OP_NOOP,
   OP_HALT,
   OP_LOADV,
   OP_LOADI,
@@ -16,14 +17,14 @@ enum {
   OP_MUL,
   OP_DIV,
   OP_MOD,
-  OP_OR,
-  OP_XOR,
   OP_NOT,
   OP_PUSH,
   OP_MOVE,    // OP A B, move B to A
   OP_CALL,
   OP_SETARG,    // this opcode need a register and a scope
   OP_GETARG,
+  OP_JUMP,
+  OP_RET,
 };
 
 #endif

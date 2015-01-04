@@ -1,20 +1,18 @@
 # this is comment
 
-var i int
-var b string
 
 func echo(w int)
   print(w)
 end
 
 func echo_str(n string)
-  print(b)
+  print(n)
 end
 
 # call method
-i = 10
+i := 10
 echo(i)
 
-b = "hello world"
+b := "hello world"
 echo_str(b)
 

@@ -4,6 +4,8 @@
 #ifndef _INTERN_H
 #define _INTERN_H
 
+#define VERSION "1.0.0"
+
 /* keep it simple */
 
 #define nil 0
@@ -28,12 +30,19 @@ typedef enum {
   CTFUNC, 
   CTCFUNC,
   CTREF,
+  VAR_INT,
+  VAR_NIL,
+  VAR_BOOL,
+  VAR_FLOAT,
+  VAR_STRING,
 } ValueType;
 
 typedef struct Object_ {
   short ctype;
+  short type;
   Value value;
   int len;
+  void *closure;
 } Object;
 #define ov(x, y)  (x->value.y)
 

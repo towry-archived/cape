@@ -5,6 +5,13 @@
 #include "debug.h"
 #include "vm.h"
 #include "node.h"
+
+#ifdef __unix__
+# include <unistd.h>
+#else
+# include "getopt.h"
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -15,42 +22,90 @@ extern int yyparse();
 Node *xtop;
 #endif
 
-static int usage() {
+static int 
+usage(int e) {
   printf("usage: cape [options] [file]\n"
          "options:\n"
-         "  -e   eval code\n"
-         "  -d   show debug info (multiple times for more)\n"
+         "  -t   print ast tree\n"
+         "  -i   print instruction\n"
          "  -v   print version\n"
          "  -h   print this\n");
-  return 1;
+  exit(e);
+}
+
+static void
+version(int i) {
+  printf("Cape version " VERSION "\n");
+  if (i) {
+    exit(0);
+  }
 }
 
 int main(int argc, char *argv[])
 {
   xtop = NULL;
   vm_t vm;
+  int opt;
+  char *source = NULL;
+  int print_tree = 0;
+  int print_ins = 0;
   Object *exitval;
 
-  if (argc > 1) {
-    lex_init(argv[1]);
-    yyparse();
-  } else {
-    usage();
-    return 1;
+  while ((opt = getopt(argc, argv, "t:i:vh")) != -1) {
+    switch (opt) {
+      case 't':
+        print_tree = 1;
+        source = optarg;
+        break;
+      case 'i':
+        print_ins = 1;
+        source = optarg;
+        break;
+      case 'v':
+        version(1);
+        break;
+      case 'h':
+        usage(0);
+        break;
+      default:
+        usage(0);
+        break;
+    }
+  }  
+
+  argc -= optind;
+  argv += optind;
+
+  if (argc > 0) {
+    source = argv[argc-1];
   }
+
+  if (source == NULL) {
+    usage(0);
+  }
+
+  lex_init(source);
+  yyparse();
 
   vm_init(&vm);
 
   bind_lib_std(&vm);
 
-  // tree_traverse(xtop, 0);
-  // exit(0);
+  // print ast tree
+  if (print_tree) {
+    tree_traverse(xtop, 0);
+    exit(0);
+  }
 
   parse_node(&vm, xtop);
   
   vm_halt(&vm);
 
-  // print_instruct(&vm);
+  // print instructions
+  if (print_ins) {
+    print_instruct(&vm);
+    exit(0);
+  }
 
   exitval = vm_run(&vm);
 
