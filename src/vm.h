@@ -49,6 +49,8 @@ typedef struct vm_ {
   scope_t *scope;
   scope_t *current;
   kvec_t(Object *) stack;
+  int constants[1024];
+  int nc;
   int ns;   // limit the stack
   pool_t *pool;
 } vm_t;

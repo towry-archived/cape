@@ -31,6 +31,7 @@ vm_init(vm_t *vm)
   // the most top scope
   vm->scope = scope_new_raw(vm);
   vm->current = vm->scope;
+  vm->nc = 0;
 }
 
 void
@@ -48,7 +49,11 @@ stack_push(vm_t *vm, Object *o)
 Object *
 stack_pop(vm_t *vm)
 {
-  return kv_pop(vm->stack);
+  Object *o;
+
+  o = kv_pop(vm->stack);
+
+  return o;
 }
 
 int 
@@ -138,6 +143,17 @@ decode(instruction_t *instruction)
   imm = instruction->p;
 }
 
+static void
+print_stack(vm_t *vm)
+{
+  int i;
+
+  for (i = 0; i < kv_size(vm->stack); i++) {
+    printf("%p ", kv_A(vm->stack, i));
+  }
+  printf("\n\n");
+}
+
 static char *
 vm_concat(vm_t *vm, char *s1, char *s2)
 {
@@ -154,110 +170,145 @@ vm_concat(vm_t *vm, char *s1, char *s2)
 
 // ! we haven't check both value type
 
-static void
+static Object *
 vm_add(vm_t *vm)
 {
   Object *o1, *o2;
   int i, m, size;
 
+  Object *ret = pool_alloc(vm->pool, sizeof(Object));
+  if (ret == NULL) {
+    exit(1);
+  }
+
   o2 = stack_pop(vm);
   o1 = stack_pop(vm);
 
   if (o1->ctype == CTINT) {
-    vm->exitval->ctype = CTINT;
-    vm->exitval->value.i = o1->value.i + o2->value.i;
+    ret->ctype = vm->exitval->ctype = CTINT;
+    ret->value.i = vm->exitval->value.i = o1->value.i + o2->value.i;
   } else if (o1->ctype == CTFLOAT) {
-    vm->exitval->ctype = CTFLOAT;
-    vm->exitval->value.f = o1->value.f + o2->value.f;
+    ret->ctype = vm->exitval->ctype = CTFLOAT;
+    ret->value.i = vm->exitval->value.f = o1->value.f + o2->value.f;
   } else if (o1->ctype == CTSTRING) {
-    vm->exitval->ctype = CTSTRING;
-    vm->exitval->value.p = vm_concat(vm, o1->value.p, o2->value.p);
+    ret->ctype = vm->exitval->ctype = CTSTRING;
+    ret->value.p = vm->exitval->value.p = vm_concat(vm, o1->value.p, o2->value.p);
     // below maybe replaced.
-    vm->exitval->len = strlen(o1->value.p) + strlen(o2->value.p);
+    ret->len = vm->exitval->len = strlen(o1->value.p) + strlen(o2->value.p);
   } else {
     log_err("unsupported operand type(s) for +");
     exit(1);
   }
+
+  return ret;
 }
 
-static void
+static Object *
 vm_sub(vm_t *vm)
 {
   Object *o1, *o2;
+  Object *ret = pool_alloc(vm->pool, sizeof(Object));
+  if (ret == NULL) {
+    exit(1);
+  }
 
   o2 = stack_pop(vm);
   o1 = stack_pop(vm);
 
   if (o1->ctype == CTINT) {
-    vm->exitval->ctype = CTINT;
-    vm->exitval->value.i = o1->value.i - o2->value.i;
+    ret->ctype = vm->exitval->ctype = CTINT;
+    ret->value.i = vm->exitval->value.i = o1->value.i - o2->value.i;
   } else if (o1->ctype == CTFLOAT) {
-    vm->exitval->ctype = CTFLOAT;
-    vm->exitval->value.f = o1->value.f - o2->value.f;
+    ret->ctype = vm->exitval->ctype = CTFLOAT;
+    ret->value.i = vm->exitval->value.f = o1->value.f - o2->value.f;
   } else {
     log_err("unsupported operand type(s) for -");
     exit(1);
   }
+
+  return ret;
 }
 
-static void
+static Object *
 vm_mul(vm_t *vm)
 {
   Object *o1, *o2;
+  Object *ret = pool_alloc(vm->pool, sizeof(Object));
+  if (ret == NULL) {
+    exit(1);
+  }
 
   o2 = stack_pop(vm);
   o1 = stack_pop(vm);
-  log_info("%d: %d", o1->value.i, o2->value.i);
 
   if (o1->ctype == CTINT) {
-    vm->exitval->ctype = CTINT;
-    vm->exitval->value.i = (o1->value.i) * (o2->value.i);
+    ret->ctype = vm->exitval->ctype = CTINT;
+
+    ret->value.i = vm->exitval->value.i = (o1->value.i) * (o2->value.i);
   } else if (o1->ctype == CTFLOAT) {
-    vm->exitval->ctype = CTFLOAT;
-    vm->exitval->value.f = (o1->value.f) * (o2->value.f);
+    ret->ctype = vm->exitval->ctype = CTFLOAT;
+    ret->value.f = vm->exitval->value.f = (o1->value.f) * (o2->value.f);
   } else {
     log_err("unsupported operand type(s) for *");
     exit(1);
   }
+
+  return ret;
 }
 
-static void
+static Object *
 vm_div(vm_t *vm)
 {
   Object *o1, *o2;
+  Object *ret = pool_alloc(vm->pool, sizeof(Object));
+  if (ret == NULL) {
+    exit(1);
+  }
 
   o2 = stack_pop(vm);
   o1 = stack_pop(vm);
 
   if (o1->ctype == CTINT) {
     vm->exitval->ctype = CTINT;
-    vm->exitval->value.i = o1->value.i / o2->value.i;
+    ret->ctype = CTINT;
+
+    ret->value.i = vm->exitval->value.i = o1->value.i / o2->value.i;
   } else if (o1->ctype == CTFLOAT) {
     vm->exitval->ctype = CTFLOAT;
-    vm->exitval->value.f = o1->value.f / o2->value.f;
+    ret->ctype = CTFLOAT;
+
+    ret->value.f = vm->exitval->value.f = o1->value.f / o2->value.f;
   } else {
     log_err("unsupported operand type(s) for /");
     exit(1);
   }
+
+  return ret;
 }
 
 // For now, mod operation only allowed 
 // between integers
-static void
+static Object *
 vm_mod(vm_t *vm)
 {
   Object *o1, *o2;
+  Object *ret = pool_alloc(vm->pool, sizeof(Object));
+  if (ret == NULL) {
+    exit(1);
+  }
 
   o2 = stack_pop(vm);
   o1 = stack_pop(vm);
 
   if (o1->ctype == CTINT) {
-    vm->exitval->ctype = CTINT;
-    vm->exitval->value.i = o1->value.i % o2->value.i;
+    ret->ctype = vm->exitval->ctype = CTINT;
+    ret->value.i = vm->exitval->value.i = o1->value.i % o2->value.i;
   } else {
     log_err("unsupported operand type(s) for %%");
     exit(1);
   }
+
+  return ret;
 }
 
 typedef void (*funcptr)(vm_t *, int);
@@ -331,25 +382,20 @@ eval(vm_t *vm)
     case OP_MOVE:
       vm->regs[reg1] = (int)(vm->regs[reg2]);
       break;
-    case OP_ADD:
-      vm_add(vm);
-      vm->regs[reg1] = (int)vm->exitval;
+    case OP_ADD: 
+      vm->regs[reg1] = (int)vm_add(vm);
       break;
     case OP_SUB:
-      vm_sub(vm);
-      vm->regs[reg1] = (int)vm->exitval;
+      vm->regs[reg1] = (int)vm_sub(vm);
       break;
     case OP_MUL:
-      vm_mul(vm);
-      vm->regs[reg1] = (int)vm->exitval;
+      vm->regs[reg1] = (int)vm_mul(vm);
       break;
     case OP_DIV:
-      vm_div(vm);
-      vm->regs[reg1] = (int)vm->exitval;
+      vm->regs[reg1] = (int)vm_div(vm);
       break;
     case OP_MOD:
-      vm_mod(vm);
-      vm->regs[reg1] = (int)vm->exitval;
+      vm->regs[reg1] = (int)vm_mod(vm);
       break;
     case OP_SETARG:
       o1 = stack_pop(vm);
@@ -382,9 +428,7 @@ eval(vm_t *vm)
         imm = (void*)vm->regs[reg1];
       }
       o1 = (void*)imm;
-      if (o1->ctype == CTINT) {
-        log_info("%d", o1->value.i);
-      }
+      
       stack_push(vm, (Object *)imm);
       break;
     case OP_GETARG:

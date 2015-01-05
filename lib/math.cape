@@ -1,4 +1,4 @@
-# this line must retain
+# add方法用来将两个字符串相加并输出
 
 func add(x string, y string)
   z := x + y
