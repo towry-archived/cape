@@ -207,6 +207,7 @@ vm_mul(vm_t *vm)
 
   o2 = stack_pop(vm);
   o1 = stack_pop(vm);
+  log_info("%d: %d", o1->value.i, o2->value.i);
 
   if (o1->ctype == CTINT) {
     vm->exitval->ctype = CTINT;
@@ -289,6 +290,7 @@ call_function(vm_t *vm, Object *fn)
 
   argc = scope->argc;
   for (i = argc-1; i >= 0; i--) {
+    // log_info("loop");
     o = stack_pop(vm);
     o2 = scope_kget(scope, i);
     if (o2 == NULL) {
@@ -379,7 +381,10 @@ eval(vm_t *vm)
       if (imm == 0) {
         imm = (void*)vm->regs[reg1];
       }
-
+      o1 = (void*)imm;
+      if (o1->ctype == CTINT) {
+        log_info("%d", o1->value.i);
+      }
       stack_push(vm, (Object *)imm);
       break;
     case OP_GETARG:

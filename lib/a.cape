@@ -1,18 +1,5 @@
 # this is comment
 
 
-func echo(w int)
-  print(w)
-end
-
-func echo_str(n string)
-  print(n)
-end
-
-# call method
-i := 10
-echo(i)
-
-b := "hello world"
-echo_str(b)
-
+f := 5 - (6-2) * (3-1)
+println(f)
